@@ -42,14 +42,14 @@ async function run() {
           return res.status(400).json({ message: 'User already exists' });
         }
 
-     const newUser = { 
-      name, 
-      email, 
-      photo, 
-      role ,
-      created_at: new Date().toISOString(),
-      last_log_at: new Date().toISOString()
-    };
+        const newUser = {
+          name,
+          email,
+          photo,
+          role,
+          created_at: new Date().toISOString(),
+          last_log_at: new Date().toISOString()
+        };
 
         const result = await usersCollection.insertOne(newUser)
         res.send(result)
@@ -59,6 +59,18 @@ async function run() {
         res.status(500).json({ message: 'Server error', error: err.message });
       }
     });
+
+    // get role
+    app.get('/users/role/:email', async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollection.findOne({ email });
+
+      if (!user) {
+        return res.status(404).json({ role: 'user' });
+      }
+      res.send({ role: user?.role || 'user' });
+    });
+
 
 
     // Send a ping to confirm a successful connection
