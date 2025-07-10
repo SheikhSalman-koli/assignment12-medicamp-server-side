@@ -9,7 +9,6 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 app.use(cors())
 app.use(express.json())
 
-////////   must change these tow things 1:${process.env.DB_NAME} 2:${process.env.DB_PASS}
 
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASS}@cluster0.dclhmji.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -27,12 +26,41 @@ async function run() {
     // await client.connect();
 
     const db = client.db('medical-camp')
-    const yourCollection = db.collection('your-collection-name')
+    const usersCollection = db.collection('users')
 
-    app.get('/test/mongo', (req, res)=> {
-        res.send('all good, all set, now go ahed')
-    })
-    
+
+    // store logged in users in DB
+    app.post('/register', async (req, res) => {
+      try {
+        const { name, email, photo, role } = req.body;
+
+        if (!email) {
+          return res.status(400).json({ message: 'Missing required email' });
+        }
+        const existingUser = await usersCollection.findOne({ email });
+        if (existingUser) {
+          return res.status(400).json({ message: 'User already exists' });
+        }
+
+     const newUser = { 
+      name, 
+      email, 
+      photo, 
+      role ,
+      created_at: new Date().toISOString(),
+      last_log_at: new Date().toISOString()
+    };
+
+        const result = await usersCollection.insertOne(newUser)
+        res.send(result)
+        // await newUser.save();
+        // res.status(201).json({ message: 'User created successfully', user: newUser });
+      } catch (err) {
+        res.status(500).json({ message: 'Server error', error: err.message });
+      }
+    });
+
+
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
     // console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -44,10 +72,10 @@ async function run() {
 run().catch(console.dir);
 
 
-app.get('/', (req, res)=> {
-    res.send('hello from medical camp')
+app.get('/', (req, res) => {
+  res.send('hello from medical camp')
 })
 
-app.listen(port,()=>{
-    console.log(`medical camp is running on port ${port}`);
+app.listen(port, () => {
+  console.log(`medical camp is running on port ${port}`);
 })
