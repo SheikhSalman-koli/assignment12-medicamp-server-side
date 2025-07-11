@@ -101,11 +101,44 @@ async function run() {
       res.send({ role: user?.role || 'user' });
     });
 
-    // get all users
-    app.get('/all-users', async (req, res) => {
-      const users = await usersCollection.find().toArray()
-      res.send(users)
-    })
+    // get organizer/user for update
+    app.get('/users/:email', async (req, res) => {
+      try {
+        const email = req.params.email;
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        res.send(user);
+      } catch (err) {
+        res.status(500).json({ message: 'Server error', error: err.message });
+      }
+    });
+
+    // update user/organizer
+    app.patch('/users/:email', async (req, res) => {
+      try {
+        const email = req.params.email;
+        const { name, photo, contact } = req.body;
+        const filter = { email };
+        const update = {
+          $set: {
+            name,
+            photo,
+            contact
+          },
+        };
+        const options = { upsert: true };
+        const result = await usersCollection.updateOne(filter, update, options);
+        res.send(result);
+      } catch (err) {
+        res.status(500).json({ message: 'Server error', error: err.message });
+      }
+    });
+
+
+
+
 
     // create camps
     app.post('/camps', async (req, res) => {
