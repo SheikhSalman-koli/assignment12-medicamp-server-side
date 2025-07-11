@@ -1,6 +1,7 @@
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const jwt = require('jsonwebtoken')
 const app = express()
 const port = process.env.PORT || 3000
 const { MongoClient, ServerApiVersion } = require('mongodb');
@@ -9,6 +10,20 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 app.use(cors())
 app.use(express.json())
 
+
+const verifyToken = async (req, res, next) => {
+
+  const token = req?.headers?.authorization.split(' ')[1]
+  if (!token) return res.status(401).send({ message: 'unauthorized access' })
+  jwt.verify(token, process.env.JWT_SECRET_KEY, (error, decoded) => {
+    if (error) {
+      return res.status(401).send({ message: 'unauthorized access' })
+    }
+    req.email === decoded.email
+    next()
+  })
+
+}
 
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASS}@cluster0.dclhmji.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -27,6 +42,18 @@ async function run() {
 
     const db = client.db('medical-camp')
     const usersCollection = db.collection('users')
+    const campsCollection = db.collection('camps')
+
+    // generate jwt
+    app.post('/jwt', (req, res) => {
+      const user = { email: req.body.email }
+      // generet token
+      const token = jwt.sign(user, process.env.JWT_SECRET_KEY, {
+        expiresIn: '1d'
+      })
+      res.send({ token, message: 'token created successfully!' })
+    })
+
 
 
     // store logged in users in DB
@@ -37,9 +64,14 @@ async function run() {
         if (!email) {
           return res.status(400).json({ message: 'Missing required email' });
         }
+
         const existingUser = await usersCollection.findOne({ email });
+
         if (existingUser) {
-          return res.status(400).json({ message: 'User already exists' });
+          const result = await usersCollection.updateOne({ email }, {
+            $set: { last_log_at: new Date().toISOString() }
+          })
+          return res.send(result)
         }
 
         const newUser = {
@@ -53,8 +85,6 @@ async function run() {
 
         const result = await usersCollection.insertOne(newUser)
         res.send(result)
-        // await newUser.save();
-        // res.status(201).json({ message: 'User created successfully', user: newUser });
       } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
       }
@@ -71,6 +101,22 @@ async function run() {
       res.send({ role: user?.role || 'user' });
     });
 
+    // get all users
+    app.get('/all-users', async (req, res) => {
+      const users = await usersCollection.find().toArray()
+      res.send(users)
+    })
+
+    // create camps
+    app.post('/camps', async (req, res) => {
+      try {
+        const newCamp = req.body;
+        const result = await campsCollection.insertOne(newCamp);
+        res.send(result);
+      } catch (err) {
+        res.status(500).json({ message: 'Server error', error: err.message });
+      }
+    });
 
 
     // Send a ping to confirm a successful connection
