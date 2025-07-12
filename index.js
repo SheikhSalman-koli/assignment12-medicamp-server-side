@@ -133,6 +133,32 @@ async function run() {
       }
     });
 
+    // show 6 height participant camps at home
+    app.get('/camps/popular', async (req, res) => {
+      try {
+        const popularCamps = await campsCollection
+          .find()
+          .sort({ participantCount: -1 })
+          .limit(6)
+          .toArray();
+        res.send(popularCamps);
+      } catch (err) {
+        res.status(500).send({ message: 'Server error', error: err.message });
+      }
+    });
+
+    // show all camps at available page
+    app.get('/see/allcamps', async (req, res) => {
+      try {
+        const popularCamps = await campsCollection
+          .find()
+          .toArray();
+        res.send(popularCamps);
+      } catch (err) {
+        res.status(500).send({ message: 'Server error', error: err.message });
+      }
+    });
+
 
     // create camps
     app.post('/camps', async (req, res) => {
@@ -188,6 +214,7 @@ async function run() {
         res.status(500).send({ message: 'Server error', error: err.message });
       }
     });
+
 
 
 
