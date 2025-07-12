@@ -4,7 +4,7 @@ const cors = require('cors')
 const jwt = require('jsonwebtoken')
 const app = express()
 const port = process.env.PORT || 3000
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 
 app.use(cors())
@@ -12,8 +12,11 @@ app.use(express.json())
 
 
 const verifyToken = async (req, res, next) => {
-
-  const token = req?.headers?.authorization.split(' ')[1]
+  const authHeader = req?.headers?.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: 'unauthorized access' });
+  }
+  const token = authHeader.split(' ')[1];
   if (!token) return res.status(401).send({ message: 'unauthorized access' })
   jwt.verify(token, process.env.JWT_SECRET_KEY, (error, decoded) => {
     if (error) {
@@ -44,6 +47,8 @@ async function run() {
     const usersCollection = db.collection('users')
     const campsCollection = db.collection('camps')
 
+    // const verifyAdmin
+
     // generate jwt
     app.post('/jwt', (req, res) => {
       const user = { email: req.body.email }
@@ -54,26 +59,20 @@ async function run() {
       res.send({ token, message: 'token created successfully!' })
     })
 
-
-
     // store logged in users in DB
     app.post('/register', async (req, res) => {
       try {
         const { name, email, photo, role } = req.body;
-
         if (!email) {
           return res.status(400).json({ message: 'Missing required email' });
         }
-
         const existingUser = await usersCollection.findOne({ email });
-
         if (existingUser) {
           const result = await usersCollection.updateOne({ email }, {
             $set: { last_log_at: new Date().toISOString() }
           })
           return res.send(result)
         }
-
         const newUser = {
           name,
           email,
@@ -82,7 +81,6 @@ async function run() {
           created_at: new Date().toISOString(),
           last_log_at: new Date().toISOString()
         };
-
         const result = await usersCollection.insertOne(newUser)
         res.send(result)
       } catch (err) {
@@ -94,7 +92,6 @@ async function run() {
     app.get('/users/role/:email', async (req, res) => {
       const email = req.params.email;
       const user = await usersCollection.findOne({ email });
-
       if (!user) {
         return res.status(404).json({ role: 'user' });
       }
@@ -102,7 +99,7 @@ async function run() {
     });
 
     // get organizer/user for update
-    app.get('/users/:email', async (req, res) => {
+    app.get('/users/:email', verifyToken, async (req, res) => {
       try {
         const email = req.params.email;
         const user = await usersCollection.findOne({ email });
@@ -115,7 +112,7 @@ async function run() {
       }
     });
 
-    // update user/organizer
+    // update user/organizer profile
     app.patch('/users/:email', async (req, res) => {
       try {
         const email = req.params.email;
@@ -137,9 +134,6 @@ async function run() {
     });
 
 
-
-
-
     // create camps
     app.post('/camps', async (req, res) => {
       try {
@@ -150,6 +144,51 @@ async function run() {
         res.status(500).json({ message: 'Server error', error: err.message });
       }
     });
+
+    // manage camp
+    app.get('/camps', async (req, res) => {
+      try {
+        const email = req.query.email;
+        const query = { created_by: email }
+        const camps = await campsCollection.find(query).toArray();
+        res.send(camps);
+      } catch (err) {
+        res.status(500).send({ message: 'Server error', error: err.message });
+      }
+    });
+
+    // delete camp
+    app.delete('/camps/:id', verifyToken, async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) }
+        const result = await campsCollection.deleteOne(query);
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: 'Server error', error: err.message });
+      }
+    });
+
+    // update camp
+    app.patch('/camps/:id', verifyToken, async (req, res) => {
+      try {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) }
+        const updateData = req.body;
+        const updateDoc =
+        {
+          $set: {
+            ...updateData,
+            // updated_at: new Date().toISOString(),
+          },
+        }
+        const result = await campsCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: 'Server error', error: err.message });
+      }
+    });
+
 
 
     // Send a ping to confirm a successful connection
