@@ -46,6 +46,7 @@ async function run() {
     const db = client.db('medical-camp')
     const usersCollection = db.collection('users')
     const campsCollection = db.collection('camps')
+    const registrationCollection = db.collection('registration')
 
     // const verifyAdmin
 
@@ -159,6 +160,18 @@ async function run() {
       }
     });
 
+    // show spesific camp at details page
+    app.get('/camp-details/:campId', async (req, res) => {
+      try {
+        const id = req.params.campId;
+        const query = { _id: new ObjectId(id) }
+        const campDetails = await campsCollection.findOne(query)
+        res.send(campDetails);
+      } catch (err) {
+        res.status(500).send({ message: 'Server error', error: err.message });
+      }
+    });
+
 
     // create camps
     app.post('/camps', async (req, res) => {
@@ -216,6 +229,30 @@ async function run() {
     });
 
 
+    // registration by clicking join button & update participateCount
+    app.post('/registrations', async (req, res) => {
+      const data = req.body;
+      const {campId} = req.body
+      const result = await registrationCollection.insertOne(data);
+      // update participateCount
+      if(result?.insertedId){
+        await campsCollection.updateOne(
+         {_id: new ObjectId(campId)},
+         { $inc: {participantCount: 1}}
+        )
+      }
+      res.send(result);
+    });
+
+    // GET /registrations/check?campId=&email
+app.get('/registrations/check', async (req, res) => {
+  const { campId, email } = req.query;
+  const isRegistered = await registrationCollection.findOne({
+    campId,
+    participantEmail: email,
+  });
+  res.send({ registered: !!isRegistered });
+});
 
 
     // Send a ping to confirm a successful connection
