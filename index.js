@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const jwt = require('jsonwebtoken')
+const stripe = require('stripe')(process.env.PAYMENT_SECRET);
 const app = express()
 const port = process.env.PORT || 3000
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -44,9 +45,11 @@ async function run() {
     // await client.connect();
 
     const db = client.db('medical-camp')
+
     const usersCollection = db.collection('users')
     const campsCollection = db.collection('camps')
     const registrationCollection = db.collection('registration')
+    const paymentsCollection = db.collection("payments");
 
     // const verifyAdmin
 
@@ -232,27 +235,106 @@ async function run() {
     // registration by clicking join button & update participateCount
     app.post('/registrations', async (req, res) => {
       const data = req.body;
-      const {campId} = req.body
+      const { campId } = req.body
       const result = await registrationCollection.insertOne(data);
       // update participateCount
-      if(result?.insertedId){
+      if (result?.insertedId) {
         await campsCollection.updateOne(
-         {_id: new ObjectId(campId)},
-         { $inc: {participantCount: 1}}
+          { _id: new ObjectId(campId) },
+          { $inc: { participantCount: 1 } }
         )
       }
       res.send(result);
     });
 
     // GET /registrations/check?campId=&email
-app.get('/registrations/check', async (req, res) => {
-  const { campId, email } = req.query;
-  const isRegistered = await registrationCollection.findOne({
-    campId,
-    participantEmail: email,
-  });
-  res.send({ registered: !!isRegistered });
-});
+    app.get('/registrations/check', async (req, res) => {
+      const { campId, email } = req.query;
+      const isRegistered = await registrationCollection.findOne({
+        campId,
+        participantEmail: email,
+      });
+      res.send({ registered: !!isRegistered });
+    });
+
+    // get all registration of logged in user
+    app.get('/registrations', verifyToken, async (req, res) => {
+      try {
+        const email = req?.query?.email;
+
+        // Find all registrations for the user
+        const registrations = await registrationCollection
+          .find({ participantEmail: email })
+          .toArray();
+        res.send(registrations);
+      } catch (err) {
+        res.status(500).send({ message: 'Server error', error: err.message });
+      }
+    });
+
+    // delete registration
+    app.delete('/registrations/:id', async (req, res) => {
+      const id = req.params.id;
+      const campId = req?.query?.campId
+
+      const deletedItem = { _id: new ObjectId(id) }
+      const result = await registrationCollection.deleteOne(deletedItem);
+
+      // decreament participantCount from campsCollection
+      if (result?.deletedCount) {
+        await campsCollection.updateOne(
+          { _id: new ObjectId(campId) },
+          { $inc: { participantCount: -1 } }
+        )
+      }
+      res.send(result);
+    });
+
+    // get a registration for payment
+    app.get('/registration/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await registrationCollection.findOne(query);
+      res.send(result);
+    });
+
+    // create payment intent
+    app.post('/payment/intent', async (req, res) => {
+      const { amountInCents } = req?.body
+
+      const { client_secret } = await stripe.paymentIntents.create({
+        amount: amountInCents,
+        currency: 'usd',
+        automatic_payment_methods: {
+          enabled: true
+        }
+      })
+      res.send({ clientSecret: client_secret })
+    })
+
+    // save payment history
+    app.post('/payments', async (req, res) => {
+      try {
+        const paymentData = req.body;
+        const {regCampId} = req.body
+        const result = await paymentsCollection.insertOne(paymentData);
+
+        if(result?.insertedId){
+          await registrationCollection.updateOne(
+            { campId: regCampId },
+            {$set : {payment_status: 'paid'}}
+          )
+        }
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).json({
+          message: 'Failed to record payment',
+          error: error.message,
+        });
+      }
+    });
+
 
 
     // Send a ping to confirm a successful connection
