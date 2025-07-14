@@ -50,6 +50,7 @@ async function run() {
     const campsCollection = db.collection('camps')
     const registrationCollection = db.collection('registration')
     const paymentsCollection = db.collection("payments");
+    const feedbackCollection = db.collection('feedback')
 
     // const verifyAdmin
 
@@ -231,7 +232,6 @@ async function run() {
       }
     });
 
-
     // registration by clicking join button & update participateCount
     app.post('/registrations', async (req, res) => {
       const data = req.body;
@@ -247,7 +247,7 @@ async function run() {
       res.send(result);
     });
 
-    // GET /registrations/check?campId=&email
+    // disable join camp button , if user already joined
     app.get('/registrations/check', async (req, res) => {
       const { campId, email } = req.query;
       const isRegistered = await registrationCollection.findOne({
@@ -261,7 +261,6 @@ async function run() {
     app.get('/registrations', verifyToken, async (req, res) => {
       try {
         const email = req?.query?.email;
-
         // Find all registrations for the user
         const registrations = await registrationCollection
           .find({ participantEmail: email })
@@ -272,14 +271,28 @@ async function run() {
       }
     });
 
+    // update confirmation status by admin
+    app.patch('/update-confirmation/:id', async (req, res) => {
+      const id = req.params.id
+      const filter = { _id: new ObjectId(id) }
+      const filter2 = { regId: id }
+      const updateDoc = {
+        $set: { confirm_status: 'confirmed' }
+      }
+      const updated = await registrationCollection.updateOne(filter, updateDoc)
+
+      if (updated.modifiedCount) {
+        await paymentsCollection.updateOne(filter2, updateDoc)
+      }
+      res.send(updated)
+    })
+
     // delete registration
     app.delete('/registrations/:id', async (req, res) => {
       const id = req.params.id;
       const campId = req?.query?.campId
-
       const deletedItem = { _id: new ObjectId(id) }
       const result = await registrationCollection.deleteOne(deletedItem);
-
       // decreament participantCount from campsCollection
       if (result?.deletedCount) {
         await campsCollection.updateOne(
@@ -288,6 +301,12 @@ async function run() {
         )
       }
       res.send(result);
+    });
+
+    // get all registrations for confirmation by admin 
+    app.get('/regConfirmation', async (req, res) => {
+      const registrations = await registrationCollection.find().toArray();
+      res.send(registrations);
     });
 
     // get a registration for payment
@@ -301,7 +320,6 @@ async function run() {
     // create payment intent
     app.post('/payment/intent', async (req, res) => {
       const { amountInCents } = req?.body
-
       const { client_secret } = await stripe.paymentIntents.create({
         amount: amountInCents,
         currency: 'usd',
@@ -316,16 +334,14 @@ async function run() {
     app.post('/payments', async (req, res) => {
       try {
         const paymentData = req.body;
-        const {regCampId} = req.body
+        const { regCampId } = req.body
         const result = await paymentsCollection.insertOne(paymentData);
-
-        if(result?.insertedId){
+        if (result?.insertedId) {
           await registrationCollection.updateOne(
             { campId: regCampId },
-            {$set : {payment_status: 'paid'}}
+            { $set: { payment_status: 'paid' } }
           )
         }
-
         res.send(result);
       } catch (error) {
         res.status(500).json({
@@ -335,6 +351,23 @@ async function run() {
       }
     });
 
+    // payment history of logged is user
+    app.get('/payments/:email', async (req, res) => {
+      const email = req.params.email;
+      const payments = await paymentsCollection.find({ payerEmail: email }).toArray();
+      res.send(payments);
+    });
+
+    // save feedback
+    app.post('/feedback', async (req, res) => {
+      try {
+        const feedback = req.body;
+        const result = await feedbackCollection.insertOne(feedback);
+        res.send(result);
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to save feedback', error: error.message });
+      }
+    });
 
 
     // Send a ping to confirm a successful connection
