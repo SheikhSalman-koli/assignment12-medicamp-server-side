@@ -383,6 +383,32 @@ async function run() {
       }
     });
 
+    // get some latest feedbacks
+    app.get('/feedback', async (req, res) => {
+      try {
+        const feedbacks = await feedbackCollection
+          .find()
+          .limit(6)
+          .sort({ date: -1 })
+          .toArray();
+        res.send(feedbacks);
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch feedback', error: error.message });
+      }
+    });
+
+    // get all feedbacks
+    app.get('/feedbackall', async (req, res) => {
+      try {
+        const feedbacks = await feedbackCollection
+          .find()
+          .sort({ date: -1 })
+          .toArray();
+        res.send(feedbacks);
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch feedback', error: error.message });
+      }
+    });
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
