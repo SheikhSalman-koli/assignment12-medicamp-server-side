@@ -317,6 +317,18 @@ async function run() {
       res.send(result);
     });
 
+    // get all registration for chartData
+    app.get('/chartData/:email', async (req, res) => {
+      try {
+        const email = req?.params.email
+        const filter = { participantEmail: email }
+        const chartData = await registrationCollection.find(filter).toArray()
+        res.send(chartData)
+      } catch (err) {
+        res.status(404).send({ message: 'email not found' })
+      }
+    })
+
     // create payment intent
     app.post('/payment/intent', async (req, res) => {
       const { amountInCents } = req?.body
@@ -334,11 +346,13 @@ async function run() {
     app.post('/payments', async (req, res) => {
       try {
         const paymentData = req.body;
-        const { regCampId } = req.body
+        const { regId } = req.body
         const result = await paymentsCollection.insertOne(paymentData);
+
         if (result?.insertedId) {
           await registrationCollection.updateOne(
-            { campId: regCampId },
+            // { campId: regCampId },
+            { _id: new ObjectId(regId) },
             { $set: { payment_status: 'paid' } }
           )
         }
@@ -379,7 +393,6 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
 
 app.get('/', (req, res) => {
   res.send('hello from medical camp')
