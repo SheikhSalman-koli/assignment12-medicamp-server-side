@@ -155,7 +155,7 @@ async function run() {
     // show all camps at available page
     app.get('/see/allcamps', async (req, res) => {
       try {
-        const { searchParams } = req.query
+        const { searchParams , sortParams} = req.query
         // console.log(searchParams);
         let query = {}
         if (searchParams) {
@@ -164,13 +164,18 @@ async function run() {
               { campName: { $regex: searchParams, $options: "i" } },
               { doctor: { $regex: searchParams, $options: "i" } },
               { location: { $regex: searchParams, $options: "i" } },
-              { fess: { $regex: searchParams, $options: "i" } },
+              { fees: { $regex: searchParams, $options: "i" } },
               { dateTime: { $regex: searchParams, $options: "i" } }
             ]
           }
         }
 
-        const popularCamps = await campsCollection.find(query).toArray();
+        let sortQuery = {}
+        if(sortParams === 'most-registered') sortQuery = {participantCount : -1}
+        else if(sortParams === 'fees') sortQuery = {fees : -1}
+        else if(sortParams === 'alphabetical') sortQuery= {campName: 1}
+
+        const popularCamps = await campsCollection.find(query).sort(sortQuery).toArray();
         res.send(popularCamps);
       } catch (err) {
         res.status(500).send({ message: 'Server error', error: err.message });
