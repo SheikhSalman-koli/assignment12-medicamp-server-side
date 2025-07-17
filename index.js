@@ -155,7 +155,7 @@ async function run() {
     // show all camps at available page
     app.get('/see/allcamps', async (req, res) => {
       try {
-        const { searchParams , sortParams} = req.query
+        const { searchParams, sortParams } = req.query
         // console.log(searchParams);
         let query = {}
         if (searchParams) {
@@ -171,9 +171,9 @@ async function run() {
         }
 
         let sortQuery = {}
-        if(sortParams === 'most-registered') sortQuery = {participantCount : -1}
-        else if(sortParams === 'fees') sortQuery = {fees : -1}
-        else if(sortParams === 'alphabetical') sortQuery= {campName: 1}
+        if (sortParams === 'most-registered') sortQuery = { participantCount: -1 }
+        else if (sortParams === 'fees') sortQuery = { fees: -1 }
+        else if (sortParams === 'alphabetical') sortQuery = { campName: 1 }
 
         const popularCamps = await campsCollection.find(query).sort(sortQuery).toArray();
         res.send(popularCamps);
@@ -209,8 +209,22 @@ async function run() {
     // manage camp
     app.get('/camps', async (req, res) => {
       try {
-        const email = req.query.email;
-        const query = { created_by: email }
+        // const email = req.query.email;
+        // const query = { created_by: email }
+        const { searchParams } = req.query
+        let query = {}
+        if (searchParams) {
+          query = {
+            $or: [
+              { campName: { $regex: searchParams, $options: "i" } },
+              { doctor: { $regex: searchParams, $options: "i" } },
+              { location: { $regex: searchParams, $options: "i" } },
+              { fees: { $regex: searchParams, $options: "i" } },
+              { dateTime: { $regex: searchParams, $options: "i" } }
+            ]
+          }
+        }
+
         const camps = await campsCollection.find(query).toArray();
         res.send(camps);
       } catch (err) {
@@ -278,10 +292,27 @@ async function run() {
     // get all registration of logged in user
     app.get('/registrations', verifyToken, async (req, res) => {
       try {
-        const email = req?.query?.email;
-        // Find all registrations for the user
+        // const {email} = req?.query?.email;
+        // // Find all registrations for the user
+        // const registrations = await registrationCollection
+        //   .find({ participantEmail: email })
+        //   .toArray();
+        const { email, searchParams } = req?.query
+        const query = {}
+        if (email) {
+          query.participantEmail = email
+        }
+        if (searchParams) {
+          query.$or = [
+            { campName: { $regex: searchParams, $options: "i" } },
+            { payment_status: { $regex: searchParams, $options: "i" } },
+            { participantName: { $regex: searchParams, $options: "i" } },
+            { fees: { $regex: searchParams, $options: "i" } },
+            { confirm_status: { $regex: searchParams, $options: "i" } }
+          ];
+        }
         const registrations = await registrationCollection
-          .find({ participantEmail: email })
+          .find(query)
           .toArray();
         res.send(registrations);
       } catch (err) {
@@ -323,7 +354,22 @@ async function run() {
 
     // get all registrations for confirmation by admin 
     app.get('/regConfirmation', async (req, res) => {
-      const registrations = await registrationCollection.find().toArray();
+      const { searchParams } = req.query
+      console.log(searchParams);
+      let query = {}
+      if (searchParams) {
+        query = {
+          $or: [
+            { campName: { $regex: searchParams, $options: "i" } },
+            { doctor: { $regex: searchParams, $options: "i" } },
+            { participantName: { $regex: searchParams, $options: "i" } },
+            { fees: { $regex: searchParams, $options: "i" } },
+            { confirm_status: { $regex: searchParams, $options: "i" } },
+            { payment_status: { $regex: searchParams, $options: "i" } }
+          ]
+        }
+      }
+      const registrations = await registrationCollection.find(query).toArray();
       res.send(registrations);
     });
 
@@ -384,10 +430,26 @@ async function run() {
     });
 
     // payment history of logged is user
-    app.get('/payments/:email', async (req, res) => {
-      const email = req.params.email;
-      const payments = await paymentsCollection.find({ payerEmail: email }).toArray();
-      res.send(payments);
+    app.get('/payments', async (req, res) => {
+      // const email = req.params.email;
+      // const payments = await paymentsCollection.find({ payerEmail: email }).toArray();
+      // res.send(payments);
+       const { email, searchParams } = req?.query
+        const query = {}
+        if (email) {
+          query.payerEmail = email
+        }
+        if (searchParams) {
+          query.$or = [
+            { regCampName: { $regex: searchParams, $options: "i" } },
+            { payment_status: { $regex: searchParams, $options: "i" } },
+            { transactionId: { $regex: searchParams, $options: "i" } },
+            { fees: { $regex: searchParams, $options: "i" } },
+            { confirm_status: { $regex: searchParams, $options: "i" } }
+          ];
+        }
+      const payments = await paymentsCollection.find(query).toArray();
+      res.send(payments)
     });
 
     // save feedback
