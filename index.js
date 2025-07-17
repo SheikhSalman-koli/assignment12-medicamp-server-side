@@ -155,9 +155,22 @@ async function run() {
     // show all camps at available page
     app.get('/see/allcamps', async (req, res) => {
       try {
-        const popularCamps = await campsCollection
-          .find()
-          .toArray();
+        const { searchParams } = req.query
+        // console.log(searchParams);
+        let query = {}
+        if (searchParams) {
+          query = {
+            $or: [
+              { campName: { $regex: searchParams, $options: "i" } },
+              { doctor: { $regex: searchParams, $options: "i" } },
+              { location: { $regex: searchParams, $options: "i" } },
+              { fess: { $regex: searchParams, $options: "i" } },
+              { dateTime: { $regex: searchParams, $options: "i" } }
+            ]
+          }
+        }
+
+        const popularCamps = await campsCollection.find(query).toArray();
         res.send(popularCamps);
       } catch (err) {
         res.status(500).send({ message: 'Server error', error: err.message });
