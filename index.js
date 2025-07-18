@@ -118,7 +118,7 @@ async function run() {
     });
 
     // update user/organizer profile
-    app.patch('/users/:email', async (req, res) => {
+    app.patch('/users/:email',verifyToken, async (req, res) => {
       try {
         const email = req.params.email;
         const { name, photo, contact } = req.body;
@@ -194,9 +194,8 @@ async function run() {
       }
     });
 
-
     // create camps
-    app.post('/camps', async (req, res) => {
+    app.post('/camps',verifyToken, async (req, res) => {
       try {
         const newCamp = req.body;
         const result = await campsCollection.insertOne(newCamp);
@@ -207,7 +206,7 @@ async function run() {
     });
 
     // manage camp
-    app.get('/camps', async (req, res) => {
+    app.get('/camps',verifyToken, async (req, res) => {
       try {
         const { email, searchParams } = req.query
         const page = parseInt(req?.query.page)
@@ -242,7 +241,6 @@ async function run() {
           .skip(page * size)
           .limit(size)
           .toArray();
-
         res.send(
           {
             total,
@@ -252,11 +250,6 @@ async function run() {
         res.status(500).send({ message: 'Server error', error: err.message });
       }
     });
-    // get camp count for pagination
-    // app.get('/countForManage', async (req, res) => {
-    //   const totalData = await campsCollection.estimatedDocumentCount()
-    //   res.send(totalData)
-    // })
 
     // delete camp
     app.delete('/camps/:id', verifyToken, async (req, res) => {
@@ -291,7 +284,7 @@ async function run() {
     });
 
     // registration by clicking join button & update participateCount
-    app.post('/registrations', async (req, res) => {
+    app.post('/registrations',verifyToken, async (req, res) => {
       const data = req.body;
       const { campId } = req.body
       const result = await registrationCollection.insertOne(data);
@@ -318,11 +311,6 @@ async function run() {
     // get all registration of logged in user
     app.get('/registrations', verifyToken, async (req, res) => {
       try {
-        // const {email} = req?.query?.email;
-        // // Find all registrations for the user
-        // const registrations = await registrationCollection
-        //   .find({ participantEmail: email })
-        //   .toArray();
         const { email, searchParams } = req?.query
         const page = parseInt(req?.query.page)
         const size = parseInt(req?.query.size)
@@ -360,28 +348,9 @@ async function run() {
         res.status(500).send({ message: 'Server error', error: err.message });
       }
     });
-    //     let query = {}
-    // if (searchParams) {
-    //   query = {
-    //     $and: [
-    //       { participantEmail: email },
-    //       {
-    //         $or: [
-    //           { campName: { $regex: searchParams, $options: "i" } },
-    //           { payment_status: { $regex: searchParams, $options: "i" } },
-    //           { participantName: { $regex: searchParams, $options: "i" } },
-    //           { fees: { $regex: searchParams, $options: "i" } },
-    //           { confirm_status: { $regex: searchParams, $options: "i" } }
-    //         ]
-    //       }
-    //     ]
-    //   }
-    // } else {
-    //   query = { participantEmail: email }
-    // }
 
     // update confirmation status by admin
-    app.patch('/update-confirmation/:id', async (req, res) => {
+    app.patch('/update-confirmation/:id',verifyToken, async (req, res) => {
       const id = req.params.id
       const filter = { _id: new ObjectId(id) }
       const filter2 = { regId: id }
@@ -397,7 +366,7 @@ async function run() {
     })
 
     // delete registration
-    app.delete('/registrations/:id', async (req, res) => {
+    app.delete('/registrations/:id',verifyToken, async (req, res) => {
       const id = req.params.id;
       const campId = req?.query?.campId
       const deletedItem = { _id: new ObjectId(id) }
@@ -503,9 +472,6 @@ async function run() {
 
     // payment history of logged is user
     app.get('/payments', async (req, res) => {
-      // const email = req.params.email;
-      // const payments = await paymentsCollection.find({ payerEmail: email }).toArray();
-      // res.send(payments);
       const { email, searchParams } = req?.query
       const page = parseInt(req?.query.page)
       const size = parseInt(req?.query.size)
@@ -528,14 +494,14 @@ async function run() {
           }
         ]
       }
-      
+
       const total = await paymentsCollection.countDocuments(query)
 
       const payments = await paymentsCollection
-      .find(query)
-      .skip(page * size)
-      .limit(size)
-      .toArray();
+        .find(query)
+        .skip(page * size)
+        .limit(size)
+        .toArray();
 
       res.send({
         total,
