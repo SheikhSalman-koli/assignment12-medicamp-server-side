@@ -209,28 +209,54 @@ async function run() {
     // manage camp
     app.get('/camps', async (req, res) => {
       try {
-        // const email = req.query.email;
-        // const query = { created_by: email }
-        const { searchParams } = req.query
+        const { email, searchParams } = req.query
+        const page = parseInt(req?.query.page)
+        const size = parseInt(req?.query.size)
+        // console.log("QUERY", req.query)
         let query = {}
+        if (email && !searchParams) {
+          query.created_by = email
+        }
         if (searchParams) {
-          query = {
-            $or: [
-              { campName: { $regex: searchParams, $options: "i" } },
-              { doctor: { $regex: searchParams, $options: "i" } },
-              { location: { $regex: searchParams, $options: "i" } },
-              { fees: { $regex: searchParams, $options: "i" } },
-              { dateTime: { $regex: searchParams, $options: "i" } }
-            ]
-          }
+          query.$and = [
+            {
+              created_by: email
+            },
+            {
+              $or: [
+                { campName: { $regex: searchParams, $options: "i" } },
+                { doctor: { $regex: searchParams, $options: "i" } },
+                { location: { $regex: searchParams, $options: "i" } },
+                { fees: { $regex: searchParams, $options: "i" } },
+                { dateTime: { $regex: searchParams, $options: "i" } }
+              ]
+            }
+          ]
         }
 
-        const camps = await campsCollection.find(query).toArray();
-        res.send(camps);
+        // get camp count for pagination
+        const total = await campsCollection.countDocuments(query);
+
+        const camps = await campsCollection
+          .find(query)
+          .skip(page * size)
+          .limit(size)
+          .toArray();
+
+        res.send(
+          {
+            total,
+            data: camps
+          });
       } catch (err) {
         res.status(500).send({ message: 'Server error', error: err.message });
       }
     });
+    // get camp count for pagination
+    // app.get('/countForManage', async (req, res) => {
+    //   const totalData = await campsCollection.estimatedDocumentCount()
+    //   res.send(totalData)
+    // })
 
     // delete camp
     app.delete('/camps/:id', verifyToken, async (req, res) => {
@@ -298,27 +324,61 @@ async function run() {
         //   .find({ participantEmail: email })
         //   .toArray();
         const { email, searchParams } = req?.query
+        const page = parseInt(req?.query.page)
+        const size = parseInt(req?.query.size)
         const query = {}
         if (email) {
           query.participantEmail = email
         }
         if (searchParams) {
-          query.$or = [
-            { campName: { $regex: searchParams, $options: "i" } },
-            { payment_status: { $regex: searchParams, $options: "i" } },
-            { participantName: { $regex: searchParams, $options: "i" } },
-            { fees: { $regex: searchParams, $options: "i" } },
-            { confirm_status: { $regex: searchParams, $options: "i" } }
-          ];
+          query.$and = [
+            { participantEmail: email },
+            {
+              $or: [
+                { campName: { $regex: searchParams, $options: "i" } },
+                { payment_status: { $regex: searchParams, $options: "i" } },
+                { participantName: { $regex: searchParams, $options: "i" } },
+                { fees: { $regex: searchParams, $options: "i" } },
+                { confirm_status: { $regex: searchParams, $options: "i" } }
+              ]
+            }
+          ]
+
         }
+        const total = await registrationCollection.countDocuments(query)
+
         const registrations = await registrationCollection
           .find(query)
+          .skip(page * size)
+          .limit(size)
           .toArray();
-        res.send(registrations);
+        res.send({
+          total,
+          data: registrations
+        });
       } catch (err) {
         res.status(500).send({ message: 'Server error', error: err.message });
       }
     });
+    //     let query = {}
+    // if (searchParams) {
+    //   query = {
+    //     $and: [
+    //       { participantEmail: email },
+    //       {
+    //         $or: [
+    //           { campName: { $regex: searchParams, $options: "i" } },
+    //           { payment_status: { $regex: searchParams, $options: "i" } },
+    //           { participantName: { $regex: searchParams, $options: "i" } },
+    //           { fees: { $regex: searchParams, $options: "i" } },
+    //           { confirm_status: { $regex: searchParams, $options: "i" } }
+    //         ]
+    //       }
+    //     ]
+    //   }
+    // } else {
+    //   query = { participantEmail: email }
+    // }
 
     // update confirmation status by admin
     app.patch('/update-confirmation/:id', async (req, res) => {
@@ -354,8 +414,8 @@ async function run() {
 
     // get all registrations for confirmation by admin 
     app.get('/regConfirmation', async (req, res) => {
-      const { searchParams} = req?.query
-      console.log(searchParams);
+      const { searchParams } = req?.query
+      // console.log(searchParams);
       const page = parseInt(req.query.page)
       const size = parseInt(req.query.size)
       let query = {}
@@ -372,14 +432,14 @@ async function run() {
         }
       }
       const registrations = await registrationCollection
-      .find(query)
-      .skip(page * size)
-      .limit(size)
-      .toArray();
+        .find(query)
+        .skip(page * size)
+        .limit(size)
+        .toArray();
       res.send(registrations);
     });
-    // get count for pagination
-    app.get('/count', async(req, res)=>{
+    // get count of registration for pagination
+    app.get('/count', async (req, res) => {
       const totalData = await registrationCollection.estimatedDocumentCount()
       res.send(totalData)
     })
@@ -446,22 +506,41 @@ async function run() {
       // const email = req.params.email;
       // const payments = await paymentsCollection.find({ payerEmail: email }).toArray();
       // res.send(payments);
-       const { email, searchParams } = req?.query
-        const query = {}
-        if (email) {
-          query.payerEmail = email
-        }
-        if (searchParams) {
-          query.$or = [
-            { regCampName: { $regex: searchParams, $options: "i" } },
-            { payment_status: { $regex: searchParams, $options: "i" } },
-            { transactionId: { $regex: searchParams, $options: "i" } },
-            { fees: { $regex: searchParams, $options: "i" } },
-            { confirm_status: { $regex: searchParams, $options: "i" } }
-          ];
-        }
-      const payments = await paymentsCollection.find(query).toArray();
-      res.send(payments)
+      const { email, searchParams } = req?.query
+      const page = parseInt(req?.query.page)
+      const size = parseInt(req?.query.size)
+      // console.log('QUERY', req.query);
+      const query = {}
+      if (email) {
+        query.payerEmail = email
+      }
+      if (searchParams) {
+        query.$and = [
+          { payerEmail: email },
+          {
+            $or: [
+              { regCampName: { $regex: searchParams, $options: "i" } },
+              { payment_status: { $regex: searchParams, $options: "i" } },
+              { transactionId: { $regex: searchParams, $options: "i" } },
+              { fees: { $regex: searchParams, $options: "i" } },
+              { confirm_status: { $regex: searchParams, $options: "i" } }
+            ]
+          }
+        ]
+      }
+      
+      const total = await paymentsCollection.countDocuments(query)
+
+      const payments = await paymentsCollection
+      .find(query)
+      .skip(page * size)
+      .limit(size)
+      .toArray();
+
+      res.send({
+        total,
+        data: payments
+      })
     });
 
     // save feedback
