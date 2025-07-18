@@ -23,10 +23,9 @@ const verifyToken = async (req, res, next) => {
     if (error) {
       return res.status(401).send({ message: 'unauthorized access' })
     }
-    req.email === decoded.email
+    req.email = decoded.email
     next()
   })
-
 }
 
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASS}@cluster0.dclhmji.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -104,7 +103,7 @@ async function run() {
     });
 
     // get organizer/user for update
-    app.get('/users/:email', verifyToken, async (req, res) => {
+    app.get('/users/:email', async (req, res) => {
       try {
         const email = req.params.email;
         const user = await usersCollection.findOne({ email });
@@ -118,7 +117,7 @@ async function run() {
     });
 
     // update user/organizer profile
-    app.patch('/users/:email',verifyToken, async (req, res) => {
+    app.patch('/users/:email', verifyToken, async (req, res) => {
       try {
         const email = req.params.email;
         const { name, photo, contact } = req.body;
@@ -284,7 +283,7 @@ async function run() {
     });
 
     // registration by clicking join button & update participateCount
-    app.post('/registrations',verifyToken, async (req, res) => {
+    app.post('/registrations', async (req, res) => {
       const data = req.body;
       const { campId } = req.body
       const result = await registrationCollection.insertOne(data);
@@ -382,7 +381,7 @@ async function run() {
     });
 
     // get all registrations for confirmation by admin 
-    app.get('/regConfirmation', async (req, res) => {
+    app.get('/regConfirmation',verifyToken, async (req, res) => {
       const { searchParams } = req?.query
       // console.log(searchParams);
       const page = parseInt(req.query.page)
@@ -471,7 +470,7 @@ async function run() {
     });
 
     // payment history of logged is user
-    app.get('/payments', async (req, res) => {
+    app.get('/payments',verifyToken, async (req, res) => {
       const { email, searchParams } = req?.query
       const page = parseInt(req?.query.page)
       const size = parseInt(req?.query.size)
