@@ -354,8 +354,10 @@ async function run() {
 
     // get all registrations for confirmation by admin 
     app.get('/regConfirmation', async (req, res) => {
-      const { searchParams } = req.query
+      const { searchParams} = req?.query
       console.log(searchParams);
+      const page = parseInt(req.query.page)
+      const size = parseInt(req.query.size)
       let query = {}
       if (searchParams) {
         query = {
@@ -369,9 +371,19 @@ async function run() {
           ]
         }
       }
-      const registrations = await registrationCollection.find(query).toArray();
+      const registrations = await registrationCollection
+      .find(query)
+      .skip(page * size)
+      .limit(size)
+      .toArray();
       res.send(registrations);
     });
+    // get count for pagination
+    app.get('/count', async(req, res)=>{
+      const totalData = await registrationCollection.estimatedDocumentCount()
+      res.send(totalData)
+    })
+
 
     // get a registration for payment
     app.get('/registration/:id', async (req, res) => {
