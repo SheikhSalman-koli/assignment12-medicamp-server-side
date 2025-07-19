@@ -205,7 +205,7 @@ async function run() {
     });
 
     // manage camp
-    app.get('/camps',verifyToken, async (req, res) => {
+    app.get('/camps', async (req, res) => {
       try {
         const { email, searchParams } = req.query
         const page = parseInt(req?.query.page)
@@ -308,7 +308,7 @@ async function run() {
     });
 
     // get all registration of logged in user
-    app.get('/registrations', verifyToken, async (req, res) => {
+    app.get('/registrations', async (req, res) => {
       try {
         const { email, searchParams } = req?.query
         const page = parseInt(req?.query.page)
@@ -349,7 +349,7 @@ async function run() {
     });
 
     // update confirmation status by admin
-    app.patch('/update-confirmation/:id',verifyToken, async (req, res) => {
+    app.patch('/update-confirmation/:id', async (req, res) => {
       const id = req.params.id
       const filter = { _id: new ObjectId(id) }
       const filter2 = { regId: id }
@@ -365,7 +365,7 @@ async function run() {
     })
 
     // delete registration
-    app.delete('/registrations/:id',verifyToken, async (req, res) => {
+    app.delete('/registrations/:id', async (req, res) => {
       const id = req.params.id;
       const campId = req?.query?.campId
       const deletedItem = { _id: new ObjectId(id) }
@@ -381,7 +381,7 @@ async function run() {
     });
 
     // get all registrations for confirmation by admin 
-    app.get('/regConfirmation',verifyToken, async (req, res) => {
+    app.get('/regConfirmation', async (req, res) => {
       const { searchParams } = req?.query
       // console.log(searchParams);
       const page = parseInt(req.query.page)
@@ -470,7 +470,7 @@ async function run() {
     });
 
     // payment history of logged is user
-    app.get('/payments',verifyToken, async (req, res) => {
+    app.get('/payments', async (req, res) => {
       const { email, searchParams } = req?.query
       const page = parseInt(req?.query.page)
       const size = parseInt(req?.query.size)
