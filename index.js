@@ -143,7 +143,7 @@ async function run() {
         const popularCamps = await campsCollection
           .find()
           .sort({ participantCount: -1 })
-          .limit(6)
+          .limit(8)
           .toArray();
         res.send(popularCamps);
       } catch (err) {
