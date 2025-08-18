@@ -421,6 +421,69 @@ async function run() {
       res.send(result);
     });
 
+    // get stats for admin
+    app.get("/stats", async(req, res) => {
+  try {
+    // Aggregate registration stats
+// const pipeline = [
+//   {
+//     $facet: {
+//       paymentStats: [
+//         {
+//           $group: {
+//             _id: "$payment_status",   // field in your registration collection
+//             count: { $sum: 1 }
+//           }
+//         },
+//         {
+//           $project: {
+//             status: "$_id",
+//             count: 1,
+//             _id: 0
+//           }
+//         }
+//       ],
+//       confirmationStats: [
+//         {
+//           $group: {
+//             _id: "$confirm_status",  // another field
+//             count: { $sum: 1 }
+//           }
+//         },
+//         {
+//           $project: {
+//             status: "$_id",
+//             count: 1,
+//             _id: 0
+//           }
+//         }
+//       ]
+//     }
+//   }
+// ];
+//  const result = await registrationCollection.aggregate(pipeline).toArray()
+   
+    const totalRegistrations = await registrationCollection.countDocuments();
+    const paidRegistrations = await registrationCollection.countDocuments({ payment_status: "paid" });
+    const confirmedRegistrations = await registrationCollection.countDocuments({ confirm_status: "confirmed" });
+    const totalCamps = await campsCollection.countDocuments();
+
+    // const stats = {
+    //   result,
+    //   totalCamps
+    // }
+    // res.send(stats);
+    res.json({
+      totalRegistrations,
+      paidRegistrations,
+      confirmedRegistrations,
+      totalCamps
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
     // get all registration for chartData
     app.get('/chartData/:email', async (req, res) => {
       try {
